@@ -1,4 +1,5 @@
 import './index.css';
+import 'maplibre-gl/dist/maplibre-gl.css';
 import {Config} from "./types/configType";
 import {Map as MapLibreMap, NavigationControl} from "maplibre-gl";
 
@@ -13,8 +14,8 @@ declare global {
 
 const map = new MapLibreMap({
     container: 'map',
-    center: [7.102405, 50.733404],
-    zoom: 17,
+    center: [0,0],
+    zoom: 10,
     rollEnabled: true,
 });
 
@@ -27,7 +28,7 @@ map.addSource('osm', {
 map.addLayer({
     id: 'osm-layer',
     type: 'raster',
-    source: 'osm',
+    source: 'osm'
 });
 
 
@@ -39,15 +40,17 @@ map.addControl(new NavigationControl({
 }));
 
 
-
-
 //TODO add a layer control
 
 const loadedMaps: string[] = []
 
 window.bridge.sendConfig((event, config: Config) => {
     console.log('Received config', config);
-    loadedMaps.length = 0; 
+    
+    map.setCenter(config.mapCenter);
+    map.setZoom(config.mapZoom);
+    
+    loadedMaps.length = 0;
 
     for (const mapInfo of config.maps) {
         console.log('MapInfo', mapInfo);
@@ -56,7 +59,6 @@ window.bridge.sendConfig((event, config: Config) => {
         } else {
             loadedMaps.push(mapInfo.name);
         }
-
         if (mapInfo.path) {
             if (mapInfo.type == 'overlay') {
                 if (map.getSource(mapInfo.name) == undefined) {
@@ -86,7 +88,6 @@ window.bridge.sendConfig((event, config: Config) => {
                         tileSize: 256
                     });
                 }
-
                 if (map.getLayer(mapInfo.name) == undefined) {
                     map.addLayer({
                         id: mapInfo.name,
@@ -99,3 +100,5 @@ window.bridge.sendConfig((event, config: Config) => {
         }
     }
 });
+
+window.electronAPI.getConfig();

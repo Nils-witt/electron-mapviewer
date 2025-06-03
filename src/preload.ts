@@ -7,3 +7,7 @@ contextBridge.exposeInMainWorld(
         }
     }
 );
+
+contextBridge.exposeInMainWorld('electronAPI', {
+    getConfig: () => ipcRenderer.send('getConfig')
+});

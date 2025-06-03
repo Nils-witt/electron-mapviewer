@@ -1,11 +1,12 @@
-import { app, BrowserWindow, dialog, Menu, net, protocol } from 'electron';
+import { app, BrowserWindow, dialog, Menu, net, protocol, ipcMain } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 import { Config } from './types/configType';
 import { MapType } from './types/MapInfo';
 import * as fs from 'node:fs';
 
-const config = new Config();
+const config: Config = new Config();
+
 const CONFIG_FILE_PATH = path.join(app.getPath('documents'), 'config.json');
 
 // Load config file if it exists
@@ -198,18 +199,15 @@ function createWindow(): void {
         title: 'Map Viewer',
     });
 
+    ipcMain.on('getConfig', (event) => {
+        console.log('Received getConfig request');
+        mainWindow.webContents.send('sendConfig', config);
+    })
+    
     // Load the appropriate URL based on environment
     const loadPromise = MAIN_WINDOW_VITE_DEV_SERVER_URL
         ? mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL)
         : mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
-
-    // Send config to the window once loaded
-    loadPromise.then(() => {
-        mainWindow.webContents.send('sendConfig', config);
-    }).catch(error => {
-        console.error('Failed to load window content:', error);
-    });
-    
     mainWindow.openDevTools();
 }
 
