@@ -4,9 +4,10 @@ export enum MapType {
 }
 
 export type MapInfo = {
+    id: string;
     name: string;
-    url?: string;
-    path?: string;
+    url: string;
     type: MapType;
-    z?: number;
+    visible: boolean;
+    opacity: number;
 }

@@ -1,11 +1,25 @@
 import * as fs from "node:fs";
 import {MapInfo} from "./MapInfo";
 
+type ConfigData = {
+    maps: MapInfo[];
+    mapCenter: [number, number];
+    mapZoom: number;
+};
+
+
 export class Config {
     maps: MapInfo[] = [];
     mapCenter: [number, number] = [0, 0];
     mapZoom: number = 10;
 
+    constructor(data?: ConfigData) {
+        if (data) {
+            this.maps = data.maps || [];
+            this.mapCenter = data.mapCenter || [0, 0];
+            this.mapZoom = data.mapZoom || 10;
+        }
+    }
 
     saveToFile(path: string) {
         fs.writeFileSync(path, JSON.stringify({
