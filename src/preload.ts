@@ -9,10 +9,14 @@ contextBridge.exposeInMainWorld(
         requestConfig: (message: never) => {
             ipcRenderer.on('requestConfig', message);
         },
+        overlaysToBrowser: (message:never) => {
+            ipcRenderer.on('overlaysToBrowser', message);
+        }
     }
 );
 
 contextBridge.exposeInMainWorld('electronAPI', {
     getConfig: () => ipcRenderer.send('getConfig'),
+    getOverlays: () => ipcRenderer.send('getOverlays'),
     saveConfig: (config:Config) => ipcRenderer.send('saveConfig',config),
 });

@@ -2,25 +2,26 @@ import './index.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import {Config} from "./types/configType";
 import {Map as MapLibreMap, NavigationControl} from "maplibre-gl";
-import {LayersControl} from "./components/LayerControl";
-import {DataProvider, DataProviderEventType} from "./components/DataProvider";
 import {SettingsControl} from "./components/SettingsControl";
-import {LayerInfo} from "./types/LayerInfo";
-import {MapType} from "./types/MapInfo";
+import {LayersControl} from "./common_components/controls/LayerControl";
+import {DataProvider, DataProviderEvent, DataProviderEventType} from "./common_components/DataProvider";
+import {GlobalEventHandler} from "./common_components/GlobalEventHandler";
+import {LayerInfo} from "./common_components/types/LayerInfo";
 
 declare global {
     interface Window {
         bridge: {
             sendConfig: (callback: (event: Electron.IpcRendererEvent, config: Config) => void) => void;
             requestConfig: (callback: (event: Electron.IpcRendererEvent) => void) => void;
+            overlaysToBrowser: (callback: (event: Electron.IpcRendererEvent, data: any) => void) => void;
         },
         electronAPI: {
             getConfig: () => void;
             saveConfig: (config: Config) => void;
+            getOverlays: () => void;
         }
     }
 }
-
 
 const map = new MapLibreMap({
     container: 'map',
@@ -29,7 +30,7 @@ const map = new MapLibreMap({
     rollEnabled: true,
 });
 
-map.setStyle("https://tiles.openfreemap.org/styles/liberty")
+map.setStyle('local-mbfile://liberty.json')
 
 const settingsControl = new SettingsControl();
 const layersControl = new LayersControl();
@@ -44,57 +45,17 @@ map.addControl(new NavigationControl({
 
 
 function setUpOverlayHandling() {
-    DataProvider.getInstance().on(DataProviderEventType.OVERLAY_ADDED, (event) => {
+    GlobalEventHandler.getInstance().on(DataProviderEventType.OVERLAY_ADDED, (event: DataProviderEvent) => {
         const overlay = event.data as LayerInfo;
         if (map.getSource(overlay.id) === undefined && map.getLayer(overlay.id + '-layer') === undefined) {
             console.log('Adding overlay source layer', overlay);
             addOverlay(overlay);
-
-            DataProvider.getInstance().on(DataProviderEventType.OVERLAY_UPDATED + "-" + overlay.id, (event) => {
-                console.log('MAPOverlay updated', event.data);
-                if (event.changes) {
-                    if (Object.prototype.hasOwnProperty.call(event.changes, 'visible')) {
-                        if (event.changes.visible) {
-                            map.setLayoutProperty(overlay.id + '-layer', 'visibility', 'visible');
-                        } else {
-                            map.setLayoutProperty(overlay.id + '-layer', 'visibility', 'none');
-                        }
-                    }
-                    if (event.changes.opacity) {
-                        map.setPaintProperty(overlay.id + '-layer', 'raster-opacity', event.changes.opacity / 100);
-                    }
-                    if (event.changes.url) {
-                        const newUrl = event.changes.url.replace("file://", "my-protocol://");
-                    }
-                }
-            });
         }
     });
     DataProvider.getInstance().getOverlays().forEach((overlay: LayerInfo) => {
         if (map.getSource(overlay.id) === undefined && map.getLayer(overlay.id + '-layer') === undefined) {
             console.log('Adding overlay source layer', overlay);
             addOverlay(overlay);
-
-            DataProvider.getInstance().on(DataProviderEventType.OVERLAY_UPDATED + "-" + overlay.id, (event) => {
-                console.log('MAPOverlay updated', event.data);
-                if (event.changes) {
-                    if (Object.prototype.hasOwnProperty.call(event.changes, 'visible')) {
-                        if (event.changes.visible) {
-                            map.setLayoutProperty(overlay.id + '-layer', 'visibility', 'visible');
-                        } else {
-                            map.setLayoutProperty(overlay.id + '-layer', 'visibility', 'none');
-                        }
-                    }
-                    if (event.changes.opacity) {
-                        map.setPaintProperty(overlay.id + '-layer', 'raster-opacity', event.changes.opacity / 100);
-                    }
-                    if (event.changes.url) {
-                        map.removeLayer(overlay.id + '-layer');
-                        map.removeSource(overlay.id);
-                        addOverlay(event.data);
-                    }
-                }
-            });
         }
     });
 }
@@ -116,12 +77,12 @@ function addOverlay(overlay: LayerInfo) {
 }
 
 if (map.loaded()) {
-    setUpOverlayHandling();
+    //setUpOverlayHandling();
 }
 
 map.on('load', () => {
     console.log('Map loaded');
-    setUpOverlayHandling();
+    //setUpOverlayHandling();
 });
 
 
@@ -136,44 +97,22 @@ window.bridge.sendConfig((event, config: Config) => {
         map.setZoom(config.mapZoom);
         firstLoad = false;
     }
-
-    loadedMaps.length = 0;
-    for (const mapInfo of config.maps) {
-        if (loadedMaps.includes(mapInfo.name)) {
-            continue;
-        } else {
-            loadedMaps.push(mapInfo.name);
-        }
-        if (mapInfo.type == 'overlay') {
-            DataProvider.getInstance().addUpdateOverlay(mapInfo.name, {
-                name: mapInfo.name,
-                id: mapInfo.name,
-                url: mapInfo.url,
-                description: '',
-                visible: true
-            });
-        }
-    }
 });
-
-
-window.bridge.requestConfig(() => {
-    window.electronAPI.saveConfig(new Config({
-        mapCenter: [map.getCenter().lng, map.getCenter().lat],
-        mapZoom: map.getZoom(),
-        maps: Array.from(DataProvider.getInstance().getOverlays().values()).map((overlay: LayerInfo) => ({
-            id: overlay.id,
-            name: overlay.name,
-            type: MapType.OVERLAY,
-            url: overlay.url,
-            description: overlay.description,
-            visible: overlay.visible,
-            opacity: overlay.opacity || 100
-        }))
-    }));
-});
-
 
 window.electronAPI.getConfig();
 
-settingsControl.setOpen(true);
+window.electronAPI.getOverlays();
+
+window.bridge.overlaysToBrowser((event, data) => {
+
+    for (const [name, url] of data) {
+        let overlay: LayerInfo = {
+            name: name,
+            id: name,
+            url: "my-protocol://" + url,
+            description: '',
+        }
+        console.log('Adding overlay', overlay);
+        DataProvider.getInstance().addOverlay(name, overlay);
+    }
+});

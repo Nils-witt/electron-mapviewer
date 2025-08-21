@@ -2,9 +2,9 @@ import {Evented, type IControl, Map as MapLibreMap} from "maplibre-gl";
 import {icon} from "@fortawesome/fontawesome-svg-core";
 import {faXmark} from "@fortawesome/free-solid-svg-icons/faXmark";
 import {faGear} from "@fortawesome/free-solid-svg-icons/faGear";
-import {DataProvider} from "./DataProvider";
-import {LayerInfo} from "../types/LayerInfo";
 import {v4} from "uuid";
+import {LayerInfo} from "../common_components/types/LayerInfo";
+import {DataProvider} from "../common_components/DataProvider";
 
 /**
  * A control for MapLibre GL JS that allows users to toggle the visibility of map layers.
